@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Coway Dashboard Monitor</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Sora:wght@300;500;700&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --blue: #1a6fb5;
+      --dark: #0d1117;
+      --bar-h: 26px;
+    }
+
+    body {
+      background: var(--dark);
+      font-family: 'Sora', sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── TOP BAR ── */
+    .topbar {
+      height: var(--bar-h);
+      background: #111827;
+      border-bottom: 1px solid #1e2d40;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      flex-shrink: 0;
+      gap: 12px;
+    }
+
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #22c55e;
+      box-shadow: 0 0 6px #22c55e;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: #4b6484;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .info-block {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .info-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      color: #4b6484;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .info-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: #7db8f0;
+      font-weight: 600;
+    }
+
+    .divider {
+      width: 1px;
+      height: 14px;
+      background: #1e2d40;
+    }
+
+    /* progress bar */
+    .progress-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .progress-track {
+      width: 80px;
+      height: 3px;
+      background: #1e2d40;
+      border-radius: 99px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #1a6fb5, #38bdf8);
+      border-radius: 99px;
+      width: 0%;
+      transition: width 1s linear;
+    }
+
+    .progress-pct {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      color: #4b6484;
+      min-width: 28px;
+    }
+
+    /* ── IFRAME ── */
+    .iframe-wrap {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+
+    iframe {
+      border: none;
+      display: block;
+      position: absolute;
+      top: 0;
+      left: 0;
+      transform-origin: top left;
+    }
+
+    /* flash overlay on refresh */
+    .flash {
+      position: absolute;
+      inset: 0;
+      background: #0d1117;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.8s ease;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .flash.show {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .flash-text {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: #2a4a6a;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      opacity: 0;
+      transition: opacity 0.4s ease 0.3s;
+    }
+
+    .flash.show .flash-text {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="dot"></div>
+      <span class="label">Coway Dashboard · Live Monitor</span>
+    </div>
+
+    <div class="topbar-right">
+      <div class="info-block">
+        <span class="info-label">Last Refreshed</span>
+        <span class="info-value" id="last-refreshed">—</span>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="info-block">
+        <span class="info-label">Next Refresh</span>
+        <span class="info-value" id="next-refresh">—</span>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="progress-wrap">
+        <div class="progress-track">
+          <div class="progress-fill" id="progress-fill"></div>
+        </div>
+        <span class="progress-pct" id="progress-pct">0%</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="iframe-wrap" id="iframe-wrap">
+    <div class="flash" id="flash">
+      <span class="flash-text">Refreshing data...</span>
+    </div>
+    <iframe
+      id="dashboard"
+      src="https://lookerstudio.google.com/embed/reporting/b50b4471-1e49-4ca4-9762-9e9255dcd3e9/page/H8JrF"
+      frameborder="0"
+      style="border:0"
+      allowfullscreen
+      sandbox="allow-storage-access-by-user-activation allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+    ></iframe>
+  </div>
+
+  <script>
+    // ── CONFIG ──────────────────────────────────────────
+    const REFRESH_MINUTE  = 10;   // refresh setiap 60 menit
+    const DASHBOARD_WIDTH   = 1220; // canvas width Looker Studio
+    const DASHBOARD_HEIGHT  = 775;  // canvas height Looker Studio
+    // ────────────────────────────────────────────────────
+
+    const iframe   = document.getElementById('dashboard');
+    const flashEl  = document.getElementById('flash');
+    const wrapEl   = document.getElementById('iframe-wrap');
+    const lastEl   = document.getElementById('last-refreshed');
+    const nextEl   = document.getElementById('next-refresh');
+    const fillEl   = document.getElementById('progress-fill');
+    const pctEl    = document.getElementById('progress-pct');
+
+    // ── AUTO SCALE ───────────────────────────────────────
+    function scaleIframe() {
+      const wrapW = wrapEl.clientWidth;
+      const wrapH = wrapEl.clientHeight;
+
+      const scaleX = wrapW / DASHBOARD_WIDTH;
+      const scaleY = wrapH / DASHBOARD_HEIGHT;
+      const scale  = scaleY // Math.min(scaleX, scaleY);
+
+      const scaledW = DASHBOARD_WIDTH * scale;
+      const scaledH = DASHBOARD_HEIGHT * scale;
+
+      const offsetX = (wrapW - scaledW) / 2;
+      const offsetY = 0 // (wrapH - scaledH) / 2;
+
+      iframe.style.width  = DASHBOARD_WIDTH + 'px';
+      iframe.style.height = DASHBOARD_HEIGHT + 'px';
+      iframe.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+      iframe.style.transformOrigin = 'top left';
+    }
+
+    scaleIframe();
+    window.addEventListener('resize', scaleIframe);
+
+    // ── TIME & REFRESH ────────────────────────────────────
+    function fmt(date) {
+      return date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+
+    function getNextRefreshTime() {
+      const now = new Date();
+      const next = new Date(now);
+
+      next.setMinutes(10, 0, 0); // menit ke-10
+
+      // kalau menit ke-10 jam ini udah lewat, maju ke jam berikutnya
+      if (next <= now) {
+        next.setHours(next.getHours() + 1);
+      }
+
+      return next;
+    }
+
+    let nextRefreshTime = getNextRefreshTime();
+    let prevRefreshTime = new Date(nextRefreshTime.getTime() - 60 * 60 * 1000); // 1 jam sebelumnya
+
+    function doRefresh() {
+      flashEl.classList.add('show');
+
+      setTimeout(() => {
+        iframe.src = iframe.src;
+        lastEl.textContent = fmt(new Date());
+      }, 900);
+
+      iframe.onload = () => {
+        setTimeout(() => {
+          flashEl.classList.remove('show');
+          scaleIframe();
+        }, 500);
+      };
+
+      prevRefreshTime = nextRefreshTime;
+      nextRefreshTime = getNextRefreshTime();
+
+      scheduleNext();
+    }
+
+    function scheduleNext() {
+      const delay = nextRefreshTime - Date.now();
+      setTimeout(doRefresh, delay);
+    }
+
+    function tick() {
+      const now     = Date.now();
+      const total   = nextRefreshTime - prevRefreshTime;
+      const elapsed = now - prevRefreshTime;
+      const pct     = Math.min((elapsed / total) * 100, 100);
+
+      nextEl.textContent = fmt(nextRefreshTime);
+      fillEl.style.width = pct + '%';
+      pctEl.textContent  = Math.floor(pct) + '%';
+    }
+
+    // ── INIT ─────────────────────────────────────────────
+    lastEl.textContent = fmt(new Date());
+    scheduleNext();
+    setInterval(tick, 1000);
+    tick();
+  </script>
+</body>
+</html>
