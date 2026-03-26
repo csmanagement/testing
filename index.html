@@ -97,34 +97,12 @@
       background: #1e2d40;
     }
 
-    /* progress bar */
-    .progress-wrap {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .progress-track {
-      width: 80px;
-      height: 3px;
-      background: #1e2d40;
-      border-radius: 99px;
-      overflow: hidden;
-    }
-
-    .progress-fill {
-      height: 100%;
-      background: linear-gradient(90deg, #1a6fb5, #38bdf8);
-      border-radius: 99px;
-      width: 0%;
-      transition: width 1s linear;
-    }
-
-    .progress-pct {
+    .countdown {
       font-family: 'JetBrains Mono', monospace;
-      font-size: 9px;
-      color: #4b6484;
-      min-width: 28px;
+      font-size: 10px;
+      color: #7db8f0;
+      font-weight: 600;
+      letter-spacing: 0.05em;
     }
 
     /* ── IFRAME ── */
@@ -200,11 +178,9 @@
 
       <div class="divider"></div>
 
-      <div class="progress-wrap">
-        <div class="progress-track">
-          <div class="progress-fill" id="progress-fill"></div>
-        </div>
-        <span class="progress-pct" id="progress-pct">0%</span>
+      <div class="info-block">
+        <span class="info-label">Refresh In</span>
+        <span class="countdown" id="countdown">—</span>
       </div>
     </div>
   </div>
@@ -225,37 +201,31 @@
 
   <script>
     // ── CONFIG ──────────────────────────────────────────
-    const REFRESH_MINUTE  = 10;   // refresh setiap 60 menit
     const DASHBOARD_WIDTH   = 1220; // canvas width Looker Studio
     const DASHBOARD_HEIGHT  = 775;  // canvas height Looker Studio
     // ────────────────────────────────────────────────────
 
-    const iframe   = document.getElementById('dashboard');
-    const flashEl  = document.getElementById('flash');
-    const wrapEl   = document.getElementById('iframe-wrap');
-    const lastEl   = document.getElementById('last-refreshed');
-    const nextEl   = document.getElementById('next-refresh');
-    const fillEl   = document.getElementById('progress-fill');
-    const pctEl    = document.getElementById('progress-pct');
+    const iframe      = document.getElementById('dashboard');
+    const flashEl     = document.getElementById('flash');
+    const wrapEl      = document.getElementById('iframe-wrap');
+    const lastEl      = document.getElementById('last-refreshed');
+    const nextEl      = document.getElementById('next-refresh');
+    const countdownEl = document.getElementById('countdown');
 
     // ── AUTO SCALE ───────────────────────────────────────
     function scaleIframe() {
       const wrapW = wrapEl.clientWidth;
       const wrapH = wrapEl.clientHeight;
 
-      const scaleX = wrapW / DASHBOARD_WIDTH;
       const scaleY = wrapH / DASHBOARD_HEIGHT;
-      const scale  = scaleY // Math.min(scaleX, scaleY);
+      const scale  = scaleY;
 
       const scaledW = DASHBOARD_WIDTH * scale;
-      const scaledH = DASHBOARD_HEIGHT * scale;
-
       const offsetX = (wrapW - scaledW) / 2;
-      const offsetY = 0 // (wrapH - scaledH) / 2;
 
       iframe.style.width  = DASHBOARD_WIDTH + 'px';
       iframe.style.height = DASHBOARD_HEIGHT + 'px';
-      iframe.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+      iframe.style.transform = `translate(${offsetX}px, 0px) scale(${scale})`;
       iframe.style.transformOrigin = 'top left';
     }
 
@@ -271,18 +241,20 @@
       const now = new Date();
       const next = new Date(now);
 
-      next.setMinutes(10, 0, 0); // menit ke-10
-
-      // kalau menit ke-10 jam ini udah lewat, maju ke jam berikutnya
-      if (next <= now) {
+      const minutes = now.getMinutes();
+      if (minutes < 10) {
+        next.setMinutes(10, 0, 0);
+      } else if (minutes < 40) {
+        next.setMinutes(40, 0, 0);
+      } else {
         next.setHours(next.getHours() + 1);
+        next.setMinutes(10, 0, 0);
       }
 
       return next;
     }
 
     let nextRefreshTime = getNextRefreshTime();
-    let prevRefreshTime = new Date(nextRefreshTime.getTime() - 60 * 60 * 1000); // 1 jam sebelumnya
 
     function doRefresh() {
       flashEl.classList.add('show');
@@ -299,9 +271,7 @@
         }, 500);
       };
 
-      prevRefreshTime = nextRefreshTime;
       nextRefreshTime = getNextRefreshTime();
-
       scheduleNext();
     }
 
@@ -311,14 +281,13 @@
     }
 
     function tick() {
-      const now     = Date.now();
-      const total   = nextRefreshTime - prevRefreshTime;
-      const elapsed = now - prevRefreshTime;
-      const pct     = Math.min((elapsed / total) * 100, 100);
+      const remaining = Math.max(0, nextRefreshTime - Date.now());
+      const totalSec  = Math.floor(remaining / 1000);
+      const mins      = Math.floor(totalSec / 60);
+      const secs      = totalSec % 60;
 
+      countdownEl.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
       nextEl.textContent = fmt(nextRefreshTime);
-      fillEl.style.width = pct + '%';
-      pctEl.textContent  = Math.floor(pct) + '%';
     }
 
     // ── INIT ─────────────────────────────────────────────
